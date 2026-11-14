@@ -1,6 +1,6 @@
 # Relay Imagegen 本机部署
 
-来源：https://github.com/AwakeFantasy/relay-imagegen
+来源：https://github.com/Ash-ahy/relay-imagegen
 版本：当前仓库版本
 源码：本仓库目录
 安装目录：%USERPROFILE%/.codex/skills/relay-imagegen

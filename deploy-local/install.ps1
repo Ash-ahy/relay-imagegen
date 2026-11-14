@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$repo = "https://github.com/AwakeFantasy/relay-imagegen/archive/refs/heads/main.zip"
+$repo = "https://github.com/Ash-ahy/relay-imagegen/archive/refs/heads/main.zip"
 $skillDir = Join-Path $HOME ".codex\skills\relay-imagegen"
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ("relay-imagegen-" + [guid]::NewGuid().ToString("N"))
 $zipPath = Join-Path $tempRoot "relay-imagegen.zip"
