@@ -18,6 +18,10 @@ import time
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 try:
     from scripts.image_client import ImageClient, ImageDownloadError, extract_image_bytes
 except ModuleNotFoundError:

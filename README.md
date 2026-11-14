@@ -68,14 +68,14 @@ Codex 会调用本地 Python 脚本出图。脚本会：
 
 ## 环境要求
 
-- Python 环境已安装 `openai` 和 `Pillow`
-- Python 3.10 或更高版本
+- Windows 用户不需要预装 Python；`deploy-local/install.cmd` 会下载固定的 Python 3.13.17 私有运行时（包含 Tkinter）并安装依赖
+- 手动开发或非 Windows 部署时，需要 Python 3.10 或更高版本、`openai` 和 `Pillow`
 - 一个支持图片生成模型的 OpenAI 兼容中转站
 - 可选：Pillow，用于参考图预处理和输出尺寸检查
 
 ## 安装
 
-最简单的 Windows 部署方式是下载仓库后双击 `deploy-local/install.cmd`。这是部署目录里唯一需要点击的脚本；它会自动安装到当前用户的 Codex Skill 目录、安装 Python 依赖并打开完整配置界面。
+最简单的 Windows 部署方式是下载仓库后双击 `deploy-local/install.cmd`。这是部署目录里唯一需要点击的脚本；它会自动下载固定版本的完整私有 Python 运行时（包含 pip 和 Tkinter，但不修改系统 PATH）、安装依赖、安装到当前用户的 Codex Skill 目录并打开完整配置界面。用户电脑不需要预装 Python，也不会受系统 Python 版本影响。
 
 也可以将整个仓库放到 Codex Skill 目录：
 
@@ -97,11 +97,11 @@ git clone https://github.com/Ash-ahy/relay-imagegen.git "$HOME/.codex/skills/rel
 
 安装后，当你在 Codex 中提到中转站出图、保存提示词、出图记录或 `$relay-imagegen` 时，Codex 就可以使用这个 Skill。
 
-安装后如需重新配置，双击安装目录中的 `configure.pyw`。完整配置界面中，每一行代表一个“渠道 + 模型”组合，列表顺序就是优先级；可以复制同一个渠道再选择另一个模型，也可以把多个渠道和多个模型混排。高优先级组合失败时，生图会按顺序切换到下一行。单源快速向导仍可用：`py -3.13 scripts/setup.py gui --quick`。
+安装后如需重新配置，双击安装目录中的 `configure.cmd`。完整配置界面中，每一行代表一个“渠道 + 模型”组合，列表顺序就是优先级；可以复制同一个渠道再选择另一个模型，也可以把多个渠道和多个模型混排。高优先级组合失败时，生图会按顺序切换到下一行。单源快速向导仍可用：`runtime\python.exe -s scripts/setup.py gui --quick`。
 
 ## 最快开始
 
-首次使用时，在 Skill 根目录双击 `configure.pyw`，或运行下面的命令，填写 Relay 地址、访问密钥并选择模型。之后 Codex 会直接调用 Python 脚本出图，不会每次打开 GUI。
+首次使用时，在 Skill 根目录双击 `configure.cmd`，或运行下面的命令，填写 Relay 地址、访问密钥并选择模型。之后 Codex 会直接调用私有运行时出图，不会每次打开 GUI。
 
 ```powershell
 $setup = "$HOME/.codex/skills/relay-imagegen/scripts/setup.py"
@@ -142,7 +142,7 @@ generated/test-YYYYMMDD-HHMMSS-2k.meta.json
 
 ## 配置
 
-在 Skill 根目录双击 `configure.pyw`，或按上面的命令打开配置窗口。界面可以添加、删除、启用、停用和调整多个 Relay 源的顺序；之后生图会自动使用，无需再次打开 GUI。
+在 Skill 根目录双击 `configure.cmd`，或按上面的命令打开配置窗口。界面可以添加、删除、启用、停用和调整多个渠道 + 模型组合的顺序；之后生图会自动使用，无需再次打开 GUI。
 
 本地配置保存在 Skill 根目录的 `config.json`，不会包含在仓库中。通常不需要手动编辑。
 

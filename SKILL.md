@@ -21,11 +21,12 @@ Use the installed Skill's `scripts/relay_imagegen.py` for image generation and e
 Agent rules:
 
 - Do not open the configuration GUI during normal image generation. Open it only when the user asks to configure the relay or the Skill-root config is missing or invalid; continue after the user saves it.
-- When opening the GUI, call `python $setup gui` using the installed Skill path below, never a path relative to the user's project directory.
+- On Windows, prefer the bundled `$skillDir/runtime/python.exe -s` installed by `deploy-local/install.cmd`; use `py -3.13` only for developer checkouts where the bundled runtime is absent. This keeps the Skill independent of the user's system Python version.
+- When opening the GUI on Windows, call `& "$skillDir/runtime/python.exe" -s "$setup" gui` using the installed Skill path below; fall back to `py -3.13` only when the private runtime is absent. Never use a path relative to the user's project directory.
 - Use the Skill-root `config.json` as the only automatic config source.
 - Keep setup to the GUI and generation to the CLI. Do not ask the user to edit JSON or expose relay implementation details during normal use.
 - Invoke the installed Skill's `scripts/relay_imagegen.py` directly for image generation and editing.
-- Before choosing a source, run `python $skill --list-sources`; it lists only source names, models, and enabled status.
+- Before choosing a source, run the private-runtime equivalent of `python $skill --list-sources`; it lists only source names, models, and enabled status.
 - Honor an explicit source or model request. Otherwise prefer Sunburst when edit precision matters and Flare for fast, high-quality everyday generation; use the first enabled source when no better fit is configured.
 - Pass the selected source with `--source <name>`. Never expose keys or relay URLs in user-facing text.
 - Non-streaming requests may fail over in GUI order after transport, rate-limit, or 5xx failures. Do not retry ordinary 4xx errors.
