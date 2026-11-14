@@ -392,8 +392,8 @@ def write_config(path: Path, overwrite: bool) -> int:
     return 0
 
 
-def open_advanced_gui() -> int:
-    """Open the full multi-source configuration window."""
+def open_full_gui() -> int:
+    """Open the full channel/model priority editor."""
     try:
         import tkinter as tk
         from tkinter import messagebox, ttk
@@ -419,18 +419,18 @@ def open_advanced_gui() -> int:
                 "enabled": raw.get("enabled", True) is not False,
             })
     window = tk.Tk()
-    window.title("Relay Imagegen 配置")
+    window.title("Relay Imagegen 渠道与模型优先级")
     window.resizable(False, False)
     frame = ttk.Frame(window, padding=16)
     frame.grid(sticky="nsew")
-    status = tk.StringVar(value="按顺序尝试启用的中转站；失败时自动切换到下一个。")
+    status = tk.StringVar(value="列表顺序就是优先级；每一行是一个渠道 + 模型，失败后按顺序切换。")
     name_var = tk.StringVar()
     url_var = tk.StringVar()
     key_var = tk.StringVar()
     enabled_var = tk.BooleanVar(value=True)
     custom_label = "自定义模型（高级）"
     model_label = tk.StringVar()
-    listbox = tk.Listbox(frame, height=6, width=32, exportselection=False)
+    listbox = tk.Listbox(frame, height=8, width=42, exportselection=False)
     listbox.grid(row=0, column=0, rowspan=10, padx=(0, 16), sticky="ns")
 
     ttk.Label(frame, text="中转站名称").grid(row=0, column=1, sticky="w")
@@ -553,9 +553,10 @@ def open_advanced_gui() -> int:
 
     def refresh() -> None:
         listbox.delete(0, tk.END)
-        for source in sources:
+        for index, source in enumerate(sources, start=1):
             marker = "启用" if source.get("enabled", True) else "停用"
-            listbox.insert(tk.END, f"[{marker}] {source['name']}")
+            model = source.get("model") or DEFAULT_MODEL
+            listbox.insert(tk.END, f"{index}. [{marker}] {source['name']} · {model}")
 
     def load_selected(_event: object = None) -> None:
         selection = listbox.curselection()
@@ -613,6 +614,16 @@ def open_advanced_gui() -> int:
         listbox.selection_set(len(sources) - 1)
         load_selected()
 
+    def duplicate_selected() -> None:
+        selection = listbox.curselection()
+        if not selection:
+            messagebox.showerror("无法复制", "请先选择一个渠道 + 模型组合。", parent=window)
+            return
+        sources.insert(selection[0] + 1, dict(sources[selection[0]]))
+        refresh()
+        listbox.selection_set(selection[0] + 1)
+        load_selected()
+
     def delete_selected() -> None:
         selection = listbox.curselection()
         if selection and len(sources) > 1:
@@ -657,13 +668,14 @@ def open_advanced_gui() -> int:
         status.set("配置已保存。生成时会按列表顺序自动尝试。")
         messagebox.showinfo("已保存", "配置已保存，之后生成图片时会自动使用。", parent=window)
 
-    ttk.Button(frame, text="添加新源", command=add_or_update).grid(row=8, column=1, pady=(12, 4), sticky="w")
-    ttk.Button(frame, text="删除选中", command=delete_selected).grid(row=8, column=2, pady=(12, 4), sticky="w")
-    ttk.Button(frame, text="上移", command=lambda: move_selected(-1)).grid(row=9, column=1, pady=4, sticky="w")
-    ttk.Button(frame, text="下移", command=lambda: move_selected(1)).grid(row=9, column=2, pady=4, sticky="w")
-    ttk.Label(frame, textvariable=status, foreground="#666", wraplength=420).grid(row=10, column=1, columnspan=2, sticky="w", pady=(8, 12))
+    ttk.Button(frame, text="添加组合", command=add_or_update).grid(row=8, column=1, pady=(12, 4), sticky="w")
+    ttk.Button(frame, text="复制组合", command=duplicate_selected).grid(row=8, column=2, pady=(12, 4), sticky="w")
+    ttk.Button(frame, text="删除选中", command=delete_selected).grid(row=9, column=1, pady=4, sticky="w")
+    ttk.Button(frame, text="上移", command=lambda: move_selected(-1)).grid(row=9, column=2, pady=4, sticky="w")
+    ttk.Button(frame, text="下移", command=lambda: move_selected(1)).grid(row=10, column=1, pady=4, sticky="w")
+    ttk.Label(frame, textvariable=status, foreground="#666", wraplength=420).grid(row=11, column=1, columnspan=2, sticky="w", pady=(8, 12))
     buttons = ttk.Frame(frame)
-    buttons.grid(row=11, column=1, columnspan=2, sticky="e")
+    buttons.grid(row=12, column=1, columnspan=2, sticky="e")
     ttk.Button(buttons, text="保存配置", command=save).grid(row=0, column=0, padx=(0, 8))
     ttk.Button(buttons, text="关闭", command=window.destroy).grid(row=0, column=1)
     listbox.bind("<<ListboxSelect>>", load_selected)
@@ -682,8 +694,8 @@ def open_advanced_gui() -> int:
     return 0
 
 
-def open_gui() -> int:
-    """Open the short first-run wizard; advanced multi-source editing is optional."""
+def open_quick_gui() -> int:
+    """Open the short first-run wizard; the full editor is the default entry point."""
     try:
         import tkinter as tk
         from tkinter import messagebox, ttk
@@ -799,7 +811,7 @@ def open_gui() -> int:
 
     def advanced() -> None:
         window.destroy()
-        open_advanced_gui()
+        open_full_gui()
 
     ttk.Label(frame, text="中转站地址").grid(row=2, column=0, sticky="w", pady=5)
     ttk.Entry(frame, textvariable=url_var, width=46).grid(row=2, column=1, pady=5)
@@ -824,10 +836,16 @@ def open_gui() -> int:
     return 0
 
 
+def open_gui() -> int:
+    """Open the complete channel/model priority editor."""
+    return open_full_gui()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Set up relay-imagegen private config.")
     parser.add_argument("command", nargs="?", choices=["config", "gui"], help="Create config or open the local configuration window.")
-    parser.add_argument("--advanced", action="store_true", help="Open the multi-source configuration window.")
+    parser.add_argument("--advanced", action="store_true", help="Open the full channel/model priority editor (default).")
+    parser.add_argument("--quick", action="store_true", help="Open the short single-source wizard.")
     parser.add_argument("--check", action="store_true", help="Check the first usable config without printing secrets.")
     parser.add_argument("--check-codex", action="store_true", help="Check the current Codex config/auth provider.")
     parser.add_argument("--codex-config", help="Override the Codex config.toml path.")
@@ -853,7 +871,7 @@ def main() -> int:
     if args.check or not args.command:
         return check()
     if args.command == "gui":
-        return open_advanced_gui() if args.advanced else open_gui()
+        return open_quick_gui() if args.quick else open_gui()
     target = ROOT_CONFIG if args.scope == "root" else SKILL_CONFIG if args.scope == "skill" else user_config_path()
     return write_config(target, args.force)
 

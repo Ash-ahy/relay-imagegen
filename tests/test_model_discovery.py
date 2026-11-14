@@ -122,7 +122,7 @@ class ModelDiscoveryGuiTests(unittest.TestCase):
                         pass
 
             with patch.object(tk, 'Tk', side_effect=hidden_window), patch.object(tk.Misc, 'mainloop', mainloop), patch.object(setup, 'ROOT_CONFIG', config), patch.object(setup, 'fetch_upstream_models', side_effect=fetch), patch('tkinter.messagebox.showinfo'), patch('tkinter.messagebox.showerror'):
-                (setup.open_advanced_gui if advanced else setup.open_gui)()
+                (setup.open_full_gui if advanced else setup.open_quick_gui)()
         if failures:
             raise failures[0]
 
@@ -210,6 +210,19 @@ class ModelDiscoveryGuiTests(unittest.TestCase):
             self.assertEqual(saved['sources'][0]['base_url'], 'https://relay.example/v1')
             self.assertEqual(saved['sources'][0]['model'], 'gpt-image-2.5-flare')
         self.run_gui(scenario, lambda *_: [], advanced=False)
+
+    def test_full_editor_can_mix_models_for_the_same_channel(self):
+        source = {'name': 'relay-1', 'base_url': 'https://relay.example/v1', 'api_key': 'dummy-test-key', 'model': 'gpt-image-2.5-flare'}
+
+        def scenario(window, entries, combo, buttons, checks, config, pump):
+            buttons['复制组合'].invoke()
+            combo.set('Sunburst')
+            buttons['保存配置'].invoke()
+            saved = json.loads(config.read_text(encoding='utf-8'))['sources']
+            self.assertEqual([item['model'] for item in saved], ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])
+            self.assertEqual([item['name'] for item in saved], ['relay-1', 'relay-1'])
+
+        self.run_gui(scenario, lambda *_: [], sources=[source])
 
 
 if __name__ == '__main__':
