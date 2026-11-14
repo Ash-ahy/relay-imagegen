@@ -1,11 +1,27 @@
 """Start the configuration GUI with the supported Python runtime on Windows."""
 
 from pathlib import Path
+import os
 import subprocess
 import sys
 
 
-runtime_exe = Path(__file__).resolve().parent / "runtime" / "python.exe"
+current_dir = Path(__file__).resolve().parent
+codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+installed_dir = codex_home / "skills" / "relay-imagegen"
+installed_configure = installed_dir / "configure.pyw"
+if installed_configure.exists() and installed_dir.resolve() != current_dir.resolve() and "--relay-imagegen-installed" not in sys.argv:
+    installed_runtime = installed_dir / "runtime" / "python.exe"
+    installed_python = str(installed_runtime) if installed_runtime.exists() else sys.executable
+    subprocess.Popen([
+        installed_python,
+        "-s",
+        str(installed_configure),
+        "--relay-imagegen-installed",
+    ])
+    raise SystemExit(0)
+
+runtime_exe = current_dir / "runtime" / "python.exe"
 running_on_private_runtime = Path(sys.executable).resolve() == runtime_exe.resolve()
 if runtime_exe.exists() and not running_on_private_runtime and "--relay-imagegen-reexec" not in sys.argv:
     subprocess.Popen([
