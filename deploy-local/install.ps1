@@ -1,3 +1,7 @@
+param(
+    [switch]$SkipGui
+)
+
 $ErrorActionPreference = "Stop"
 
 $repo = "https://github.com/Ash-ahy/relay-imagegen/archive/refs/heads/main.zip"
@@ -28,9 +32,14 @@ try {
     }
 
     Write-Host "Installing Python dependencies..."
-    py -3.13 -m pip install --user --upgrade openai Pillow certifi
-    Write-Host "Installation complete. Opening the configuration window..."
-    & py -3.13 (Join-Path $skillDir "scripts\setup.py") gui
+    py -3.13 -m pip install --user --upgrade "openai>=2.37,<3" Pillow certifi
+    if ($SkipGui) {
+        Write-Host "Installation complete. Skipping the configuration window."
+    }
+    else {
+        Write-Host "Installation complete. Opening the configuration window..."
+        & py -3.13 (Join-Path $skillDir "scripts\setup.py") gui
+    }
 }
 finally {
     if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue }
