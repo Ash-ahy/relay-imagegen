@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from scripts import relay_imagegen
+from scripts.image_client import ImageDownloadError
 
 
 class HttpError(Exception):
@@ -134,6 +135,17 @@ class RoutingTests(unittest.TestCase):
     def test_local_file_errors_are_not_retryable(self):
         self.assertFalse(relay_imagegen.is_retryable_relay_error(FileNotFoundError("missing input")))
         self.assertFalse(relay_imagegen.is_retryable_relay_error(PermissionError("input denied")))
+
+    @patch("scripts.relay_imagegen.ImageClient")
+    def test_download_failure_does_not_generate_again_at_backup(self, client_class):
+        client_class.return_value.generate.side_effect = ImageDownloadError("download timeout", "https://images.test/a", status_code=503)
+        with self.assertRaises(ImageDownloadError):
+            relay_imagegen.request_with_failover(
+                sources=self.sources, preferred_source=None, explicit_model=None,
+                mode="generate", prompt="test", size="1024x1024", quality="low",
+                image_paths=[], output_format=None, timeout=10,
+            )
+        client_class.assert_called_once()
 
 
 if __name__ == "__main__":

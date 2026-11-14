@@ -1,11 +1,13 @@
 import base64
 import io
 import os
+import ssl
 import tempfile
 import unittest
+from urllib.error import URLError, HTTPError
 from unittest.mock import patch
 from PIL import Image
-from scripts.image_client import ImageClient, ImagePayloadError, extract_image_bytes
+from scripts.image_client import ImageClient, ImagePayloadError, ImageDownloadError, extract_image_bytes
 
 def png_bytes():
     buf=io.BytesIO(); Image.new("RGB",(2,3),"red").save(buf,format="PNG"); return buf.getvalue()
@@ -21,6 +23,36 @@ class ImageClientTests(unittest.TestCase):
     @patch("scripts.image_client.urlopen")
     def test_downloads_url_payload(self,urlopen):
         raw=png_bytes(); urlopen.return_value=FakeUrlResponse(raw); self.assertEqual(extract_image_bytes({"url":"https://example.test/image.png"}),raw); urlopen.assert_called_once()
+        context = urlopen.call_args.kwargs["context"]
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(context.check_hostname)
+        self.assertNotIn("Authorization", urlopen.call_args.args[0].headers)
+
+    @patch("scripts.image_client.urlopen")
+    def test_certificate_failure_preserves_url_without_exposing_it(self, urlopen):
+        url = "https://example.test/image.png?signature=private"
+        urlopen.side_effect = URLError(ssl.SSLCertVerificationError(1, "certificate has expired"))
+        with self.assertRaises(ImageDownloadError) as error:
+            extract_image_bytes({"url": url})
+        self.assertEqual(error.exception.url, url)
+        self.assertIn("certificate verification failed", str(error.exception))
+        self.assertNotIn("private", str(error.exception))
+
+    @patch("scripts.image_client.urlopen")
+    def test_download_http_failure_is_distinct_from_generation_error(self, urlopen):
+        urlopen.side_effect = HTTPError("https://example.test/image.png", 503, "private", {}, None)
+        with self.assertRaises(ImageDownloadError) as error:
+            extract_image_bytes({"url": "https://example.test/image.png"})
+        self.assertEqual(error.exception.status_code, 503)
+
+    @patch("scripts.image_client.urlopen")
+    def test_download_uses_sdk_ca_bundle(self, urlopen):
+        import certifi
+        real_context = ssl.create_default_context
+        urlopen.return_value = FakeUrlResponse(png_bytes())
+        with patch("scripts.image_client.ssl.create_default_context", wraps=real_context) as context:
+            extract_image_bytes({"url": "https://example.test/image.png"})
+        context.assert_called_once_with(cafile=certifi.where())
     def test_rejects_empty_payload(self):
         with self.assertRaises(ImagePayloadError): extract_image_bytes({"b64_json":None,"url":None})
     @patch("scripts.image_client.OpenAI")

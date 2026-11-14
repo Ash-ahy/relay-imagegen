@@ -19,9 +19,9 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 try:
-    from scripts.image_client import ImageClient
+    from scripts.image_client import ImageClient, ImageDownloadError, extract_image_bytes
 except ModuleNotFoundError:
-    from image_client import ImageClient
+    from image_client import ImageClient, ImageDownloadError, extract_image_bytes
 
 
 DEFAULT_SIZE = "2560x1440"
@@ -509,6 +509,8 @@ def write_sidecar(
 
 def is_retryable_relay_error(exc: BaseException) -> bool:
     """Only fail over on transport, rate-limit, or server-side failures."""
+    if isinstance(exc, ImageDownloadError):
+        return False
     if isinstance(exc, (FileNotFoundError, PermissionError, IsADirectoryError)):
         return False
     if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
@@ -593,6 +595,9 @@ def request_with_failover(
             selected["model"] = model
             return generated, selected, {"selected_source": name, "attempts": attempts}
         except Exception as exc:
+            if isinstance(exc, ImageDownloadError):
+                exc.source_name = name
+                exc.model = model
             retryable = is_retryable_relay_error(exc)
             attempt.update({"status": "failed", "retryable": retryable, "error": safe_error_summary(exc, source), "elapsed_seconds": round(time.time() - started, 2)})
             attempts.append(attempt)
@@ -648,7 +653,27 @@ def main() -> int:
     parser.add_argument("--keep-prepared", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--retry-download", help="Retry a saved download record without issuing an image generation request.")
     args = parser.parse_args()
+    if args.retry_download:
+        record_path = Path(args.retry_download)
+        try:
+            record = json.loads(record_path.read_text(encoding="utf-8"))
+            out = Path(record["output"])
+            if out.exists():
+                die("Output already exists; download retry will not overwrite it.")
+            data = extract_image_bytes({"url": record["url"]})
+            write_output_images([data], out, None, False)
+            dimensions = verify_dimensions(out, record["size"])
+            metadata = dict(record["metadata"], dimensions=dimensions, download_recovered=True)
+            out.with_suffix(".meta.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            record_path.unlink()
+            print(f"OUT={out}\nDOWNLOAD_ONLY=1")
+            return 0
+        except ImageDownloadError as exc:
+            die(str(exc) + "; the download record has been retained.")
+        except (OSError, ValueError, KeyError, TypeError):
+            die("Unable to recover this download record; no image request was made.")
 
     cfg, config_path = load_config(args.config, args.from_ccswitch, args.from_codex, args.no_codex, args.no_ccswitch, args.ccswitch_db, args.codex_config, args.codex_auth)
     sources = normalize_sources(cfg)
@@ -731,6 +756,16 @@ def main() -> int:
                 on_partial=save_partial,
             )
         except Exception as exc:
+            if isinstance(exc, ImageDownloadError):
+                record_path = out.with_suffix(".download.json").resolve()
+                metadata = {"mode": args.mode, "model": getattr(exc, "model", model), "source": getattr(exc, "source_name", args.source), "size": args.size, "output": str(out.resolve()), "prompt_snapshot": prompt}
+                record = {"url": exc.url, "output": str(out.resolve()), "size": args.size, "metadata": metadata}
+                try:
+                    record_path.parent.mkdir(parents=True, exist_ok=True)
+                    record_path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                except OSError:
+                    die(str(exc) + "; could not save a download recovery record. No generation retry was attempted.")
+                die(f"{exc}. No generation retry was attempted. Retry download only with --retry-download {record_path}")
             if args.stream:
                 die(f"Image stream failed; the relay may have accepted the request, and no retry was attempted: {redact_error_text(str(exc), sources)}")
             die(f"All configured relay sources failed: {redact_error_text(str(exc), sources)}")

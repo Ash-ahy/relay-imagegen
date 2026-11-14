@@ -1,6 +1,7 @@
 .secrets/
 /config.json
 *.meta.json
+*.download.json
 relay_prepared/
 generated/
 __pycache__/

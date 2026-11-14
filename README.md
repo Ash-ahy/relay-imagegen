@@ -75,7 +75,9 @@ Codex 会调用本地 Python 脚本出图。脚本会：
 
 ## 安装
 
-将整个仓库放到 Codex Skill 目录：
+最简单的 Windows 部署方式是下载仓库后双击 `deploy-local/install.cmd`。这是部署目录里唯一需要点击的脚本；它会自动安装到当前用户的 Codex Skill 目录、安装 Python 依赖并打开快速配置界面。
+
+也可以将整个仓库放到 Codex Skill 目录：
 
 ```text
 ~/.codex/skills/relay-imagegen
@@ -94,6 +96,8 @@ git clone https://github.com/AwakeFantasy/relay-imagegen.git "$HOME/.codex/skill
 ```
 
 安装后，当你在 Codex 中提到中转站出图、保存提示词、出图记录或 `$relay-imagegen` 时，Codex 就可以使用这个 Skill。
+
+安装后如需重新配置，双击安装目录中的 `configure.pyw`。快速配置界面只要求填写中转站地址、访问密钥和模型；多渠道、备用源、排序等功能位于“高级配置”。
 
 ## 最快开始
 
@@ -141,6 +145,8 @@ generated/test-YYYYMMDD-HHMMSS-2k.meta.json
 在 Skill 根目录双击 `configure.pyw`，或按上面的命令打开配置窗口。界面可以添加、删除、启用、停用和调整多个 Relay 源的顺序；之后生图会自动使用，无需再次打开 GUI。
 
 本地配置保存在 Skill 根目录的 `config.json`，不会包含在仓库中。通常不需要手动编辑。
+
+填写地址和访问密钥后，界面会在后台自动读取上游的 `/models` 列表（仅填写域名时自动补 `/v1`），也可以点击“获取 / 刷新上游模型”。默认按名称筛选疑似生图模型；“显示全部模型”可以查看完整列表。获取或筛选不会覆盖当前选择，选定后点击“保存配置”。模型名称只是筛选线索，列表不保证图片接口兼容；上游未开放列表接口时仍可选择预设或手动填写模型 ID。
 
 旧的单源配置仍然兼容。多源配置由 GUI 自动保存，结构大致如下：
 
@@ -330,6 +336,10 @@ generated/character-chair-20260527-183000-2k.meta.json
 - `.meta.json` 运行记录不会包含 key。
 
 ## 故障排查
+
+### 图片下载失败
+
+图片下载与 OpenAI SDK 使用同一套 certifi 证书库，保持证书和主机名校验。生图接口已返回图片 URL 后，下载失败不会触发备用源重新生图。程序会在预定输出旁保存 `.download.json` 恢复记录；使用 `python $skill --retry-download <恢复记录路径>` 只重新下载图片，不提交生图请求。记录含临时图片链接，请保留在本机；下载成功后自动删除。上游证书确实过期时，需先由服务方续期；程序不会关闭证书校验。
 
 ### 没有找到配置
 

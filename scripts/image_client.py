@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import base64
 import io
+import ssl
 from typing import Any, Callable
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+import certifi
 from openai import OpenAI
 
 
@@ -15,6 +17,14 @@ class ImagePayloadError(RuntimeError):
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(message)
         self.status_code = status_code
+
+
+class ImageDownloadError(ImagePayloadError):
+    """The API returned an image URL; another generation must not be attempted."""
+
+    def __init__(self, message: str, url: str, status_code: int | None = None):
+        super().__init__(message, status_code)
+        self.url = url
 
 
 def _field(item: Any, name: str) -> Any:
@@ -40,17 +50,28 @@ def _validate_image_bytes(data: bytes, source: str) -> bytes:
 def _download_url(url: str, timeout: float = 120.0) -> bytes:
     request = Request(url, headers={"User-Agent": "relay-imagegen/1.0"})
     try:
-        with urlopen(request, timeout=timeout) as response:
+        # Match the OpenAI SDK's CA bundle instead of a different platform store.
+        context = ssl.create_default_context(cafile=certifi.where())
+        with urlopen(request, timeout=timeout, context=context) as response:
             status = getattr(response, "status", 200)
             content_type = response.headers.get("Content-Type", "")
             data = response.read()
     except HTTPError as exc:
-        raise ImagePayloadError(f"Image URL returned HTTP {exc.code}", status_code=exc.code) from exc
+        raise ImageDownloadError(f"Image download returned HTTP {exc.code}; generation was already accepted", url, status_code=exc.code) from None
+    except Exception as exc:
+        cause = getattr(exc, "reason", exc)
+        message = ("Image download certificate verification failed; generation was already accepted"
+                   if isinstance(cause, ssl.SSLCertVerificationError) else
+                   "Image download connection failed; generation was already accepted")
+        raise ImageDownloadError(message, url) from None
     if not 200 <= status < 300:
-        raise ImagePayloadError(f"Image URL returned HTTP {status}", status_code=status)
+        raise ImageDownloadError(f"Image download returned HTTP {status}; generation was already accepted", url, status_code=status)
     if not content_type.lower().split(";", 1)[0].startswith("image/"):
-        raise ImagePayloadError(f"Image URL returned unexpected content type: {content_type or '<missing>'}")
-    return _validate_image_bytes(data, "Image URL")
+        raise ImageDownloadError("Image download did not return an image", url)
+    try:
+        return _validate_image_bytes(data, "Image URL")
+    except ImagePayloadError:
+        raise ImageDownloadError("Image download returned invalid image data", url) from None
 
 
 def extract_image_bytes(item: Any) -> bytes:
