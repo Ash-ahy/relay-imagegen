@@ -10,6 +10,8 @@
 
 安装后如需修改配置，双击安装目录中的 `configure.cmd`。单源快速向导可用 `runtime\python.exe -s scripts/setup.py gui --quick` 打开。
 
+默认安装到 `%USERPROFILE%\.codex\skills\relay-imagegen`。如果设置了自定义 `CODEX_HOME`，安装器会自动安装到 `%CODEX_HOME%\skills\relay-imagegen`；Codex 程序装在哪个盘不影响这里。
+
 安装器不依赖系统 Python；命令行调用时优先使用安装目录中的 `runtime\python.exe -s`。
 
 命令行调用（可选）：

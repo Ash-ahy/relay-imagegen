@@ -42,7 +42,8 @@ Agent rules:
 Windows path setup:
 
 ```powershell
-$skillDir = "$HOME/.codex/skills/relay-imagegen"
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { "$HOME/.codex" }
+$skillDir = "$codexHome/skills/relay-imagegen"
 $setup = "$skillDir/scripts/setup.py"
 $skill = "$skillDir/scripts/relay_imagegen.py"
 ```

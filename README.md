@@ -89,6 +89,14 @@ Windows 通常为：
 C:\Users\<你的用户名>\.codex\skills\relay-imagegen
 ```
 
+如果你设置了自定义 `CODEX_HOME`，安装器会自动改用该目录。例如：
+
+```powershell
+$env:CODEX_HOME = "D:\CodexData"
+```
+
+此时 Skill 会安装到 `D:\CodexData\skills\relay-imagegen`。Codex 程序本身安装在哪个盘，不影响 Skill 的安装位置。
+
 也可以从 GitHub 克隆：
 
 ```powershell
