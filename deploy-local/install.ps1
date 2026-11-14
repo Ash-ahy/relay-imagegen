@@ -61,13 +61,8 @@ function Ensure-PrivatePython {
     $actualHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
     if ($actualHash -ne $pythonSha256) { throw "The Python runtime download failed its SHA256 check." }
     New-Item -ItemType Directory -Path $runtimeDir -Force | Out-Null
-    $arguments = @(
-        "/quiet", "InstallAllUsers=0", ('TargetDir="{0}"' -f $runtimeDir),
-        "Include_launcher=0", "Include_pip=1", "Include_tcltk=1",
-        "Include_test=0", "PrependPath=0", "Shortcuts=0"
-    )
-    $process = Start-Process -FilePath $installer -ArgumentList $arguments -Wait -PassThru
-    if ($process.ExitCode -ne 0) { throw "Private Python installation failed (exit code $($process.ExitCode))." }
+    & $installer /quiet InstallAllUsers=0 "TargetDir=$runtimeDir" Include_launcher=0 Include_pip=1 Include_tcltk=1 Include_test=0 PrependPath=0 Shortcuts=0
+    if ($LASTEXITCODE -ne 0) { throw "Private Python installation failed (exit code $LASTEXITCODE)." }
     if (-not (Test-PrivatePython)) { throw "The private Python runtime is missing Tkinter or pip." }
 }
 
